@@ -556,3 +556,605 @@ VALUES
 (4, 4, '2026-05-13 07:55:00', '192.168.1.44', 'N', 'Incorrect password'),
 (5, 4, '2026-05-13 07:57:00', '192.168.1.44', 'Y', NULL);
 
+
+-- PART 4: BASIC QUERIES
+-- CMPG 311 - Group 1
+-- Done by: [Nabo Nhonho]
+-- Student No: [54486785]
+
+-- 1. QUERIES BASED ON COMPANY INFO REQUIREMENTS
+
+
+-- get all approved voters who can vote
+SELECT UserID, FullName, EmailAddress, Eligibility, VotedFlag, CreatedDate
+FROM System_User
+WHERE Role = 'Voter' AND Eligibility = 'Approved'
+ORDER BY FullName;
+GO
+
+-- show active elections and the positions available
+SELECT e.ElectionID, e.ElectionName, e.StartDateTime, e.EndDateTime, e.Status,
+       p.PositionID, p.PositionName, p.Description, p.OrderOnBallot
+FROM Election e
+INNER JOIN Positions p ON e.ElectionID = p.ElectionID
+WHERE e.Status = 'Active'
+ORDER BY e.ElectionName, p.OrderOnBallot;
+GO
+
+-- approved candidates with their election and position info
+SELECT cn.NominationID, u.FullName AS CandidateName, u.EmailAddress,
+       e.ElectionName, p.PositionName, cn.ApprovalStatus, cn.ApprovedBy, cn.NominationDate
+FROM CandidateNomination cn
+INNER JOIN System_User u ON cn.CandidateUserID = u.UserID
+INNER JOIN Election e ON cn.ElectionID = e.ElectionID
+INNER JOIN Positions p ON cn.PositionID = p.PositionID
+WHERE cn.ApprovalStatus = 'Approved'
+ORDER BY e.ElectionName, p.PositionName, u.FullName;
+GO
+
+-- election results showing who won
+SELECT r.ResultID, e.ElectionName, u.FullName AS CandidateName, p.PositionName,
+       r.TotalVotes, r.PercentageWon, r.MarginOfVictory,
+       CASE r.IsWinner WHEN 'Y' THEN 'Winner' ELSE 'Runner-up' END AS ResultStatus
+FROM Results r
+INNER JOIN System_User u ON r.CandidateUserID = u.UserID
+INNER JOIN BallotItem bi ON r.BallotItemID = bi.BallotItemID
+INNER JOIN Positions p ON bi.PositionID = p.PositionID
+INNER JOIN Election e ON r.ElectionID = e.ElectionID
+ORDER BY e.ElectionName, p.PositionName, r.TotalVotes DESC;
+GO
+
+-- pending nominations still waiting for approval
+SELECT cn.NominationID, u.FullName AS CandidateName, u.EmailAddress,
+       e.ElectionName, p.PositionName, cn.NominationDate, cn.ApprovalStatus
+FROM CandidateNomination cn
+INNER JOIN System_User u ON cn.CandidateUserID = u.UserID
+INNER JOIN Election e ON cn.ElectionID = e.ElectionID
+INNER JOIN Positions p ON cn.PositionID = p.PositionID
+WHERE cn.ApprovalStatus = 'Pending'
+ORDER BY cn.NominationDate;
+GO
+
+-- 2. QUERY LIMITATIONS (ROWS & COLUMNS)
+
+
+-- only show top 3 candidates with most votes
+SELECT u.FullName AS CandidateName, p.PositionName, r.TotalVotes, r.PercentageWon
+FROM Results r
+INNER JOIN System_User u ON r.CandidateUserID = u.UserID
+INNER JOIN BallotItem bi ON r.BallotItemID = bi.BallotItemID
+INNER JOIN Positions p ON bi.PositionID = p.PositionID
+WHERE r.ElectionID = 1
+ORDER BY r.TotalVotes DESC
+FETCH FIRST 3 ROWS ONLY;
+GO
+
+-- limit columns - only show what we need for voters
+SELECT UserID, FullName, EmailAddress, Role, Eligibility
+FROM System_User
+WHERE Role = 'Voter';
+GO
+
+-- skip first voter, show next 2 (pagination)
+SELECT UserID, FullName, EmailAddress, Eligibility
+FROM System_User
+WHERE Role = 'Voter'
+ORDER BY UserID
+OFFSET 1 ROWS FETCH NEXT 2 ROWS ONLY;
+GO
+
+-- 3. SORTING OPERATIONS
+
+
+-- elections sorted by start date newest first
+SELECT ElectionID, ElectionName, StartDateTime, EndDateTime, Status
+FROM Election
+ORDER BY StartDateTime DESC;
+GO
+
+-- users sorted by role then name
+SELECT UserID, FullName, Role, Eligibility, CreatedDate
+FROM System_User
+ORDER BY
+    CASE Role
+        WHEN 'Administrator' THEN 1
+        WHEN 'ElectionOfficial' THEN 2
+        WHEN 'OversightOfficer' THEN 3
+        WHEN 'Candidate' THEN 4
+        WHEN 'Voter' THEN 5
+    END,
+    FullName;
+GO
+
+-- candidates sorted by when they were nominated (oldest first)
+SELECT cn.NominationID, u.FullName AS CandidateName, e.ElectionName,
+       p.PositionName, cn.NominationDate, cn.ApprovalStatus
+FROM CandidateNomination cn
+INNER JOIN System_User u ON cn.CandidateUserID = u.UserID
+INNER JOIN Election e ON cn.ElectionID = e.ElectionID
+INNER JOIN Positions p ON cn.PositionID = p.PositionID
+ORDER BY cn.NominationDate ASC;
+GO
+
+-- results sorted by percentage won (highest first)
+SELECT r.ResultID, u.FullName AS CandidateName, p.PositionName, r.TotalVotes, r.PercentageWon
+FROM Results r
+INNER JOIN System_User u ON r.CandidateUserID = u.UserID
+INNER JOIN BallotItem bi ON r.BallotItemID = bi.BallotItemID
+INNER JOIN Positions p ON bi.PositionID = p.PositionID
+ORDER BY r.PercentageWon DESC;
+GO
+
+-- 4. LIKE, AND, OR OPERATORS
+
+
+-- find anyone with "Karabo" in their name
+SELECT UserID, FullName, EmailAddress, Role
+FROM System_User
+WHERE FullName LIKE '%Karabo%'
+ORDER BY FullName;
+GO
+
+-- find all gmail users
+SELECT UserID, FullName, EmailAddress, Role
+FROM System_User
+WHERE EmailAddress LIKE '%@gmail.com'
+ORDER BY FullName;
+GO
+
+-- approved candidates for active elections (AND)
+SELECT cn.NominationID, u.FullName AS CandidateName, e.ElectionName,
+       p.PositionName, cn.ApprovalStatus
+FROM CandidateNomination cn
+INNER JOIN System_User u ON cn.CandidateUserID = u.UserID
+INNER JOIN Election e ON cn.ElectionID = e.ElectionID
+INNER JOIN Positions p ON cn.PositionID = p.PositionID
+WHERE cn.ApprovalStatus = 'Approved' AND e.Status = 'Active'
+ORDER BY e.ElectionName, u.FullName;
+GO
+
+-- candidates or election officials (OR)
+SELECT UserID, FullName, EmailAddress, Role, Eligibility
+FROM System_User
+WHERE Role = 'Candidate' OR Role = 'ElectionOfficial'
+ORDER BY Role, FullName;
+GO
+
+-- combined: names starting with K who are voters or candidates
+SELECT UserID, FullName, EmailAddress, Role, Eligibility
+FROM System_User
+WHERE FullName LIKE 'K%' AND (Role = 'Voter' OR Role = 'Candidate')
+ORDER BY FullName;
+GO
+
+-- everyone NOT using gmail
+SELECT UserID, FullName, EmailAddress
+FROM System_User
+WHERE EmailAddress NOT LIKE '%@gmail.com'
+ORDER BY FullName;
+GO
+
+-- 5. VARIABLES & CHARACTER FUNCTIONS
+
+
+-- uppercase names
+SELECT UserID, UPPER(FullName) AS UpperCaseName, UPPER(EmailAddress) AS UpperCaseEmail, Role
+FROM System_User
+WHERE Role = 'Candidate';
+GO
+
+-- lowercase emails
+SELECT UserID, FullName, LOWER(EmailAddress) AS LowerCaseEmail, Role
+FROM System_User;
+GO
+
+-- proper case names
+SELECT UserID, INITCAP(FullName) AS ProperCaseName, Role
+FROM System_User;
+GO
+
+-- how long are the names
+SELECT UserID, FullName, LENGTH(FullName) AS NameLength, LENGTH(EmailAddress) AS EmailLength
+FROM System_User
+ORDER BY NameLength DESC;
+GO
+
+-- first 3 letters of role
+SELECT UserID, FullName, Role, SUBSTR(Role, 1, 3) AS RoleAbbreviation
+FROM System_User;
+GO
+
+-- where is the @ in emails
+SELECT UserID, FullName, EmailAddress, INSTR(EmailAddress, '@') AS AtSymbolPosition
+FROM System_User;
+GO
+
+-- combine name and role
+SELECT UserID, CONCAT(CONCAT(FullName, ' - '), Role) AS NameAndRole
+FROM System_User;
+GO
+
+-- hide most of the password
+SELECT UserID, FullName,
+       REPLACE(HashedPassword, SUBSTR(HashedPassword, 1, LENGTH(HashedPassword)-4), '****') AS MaskedPassword
+FROM System_User;
+GO
+
+-- trim any extra spaces
+SELECT UserID, TRIM(FullName) AS TrimmedName, Role
+FROM System_User;
+GO
+
+-- pad user IDs with zeros
+SELECT UserID, LPAD(UserID, 5, '0') AS PaddedUserID, FullName, Role
+FROM System_User
+WHERE Role = 'Voter';
+GO
+
+-- 6. ROUNDING/TRUNCATION
+
+
+-- round percentage to 1 decimal
+SELECT ResultID, ElectionID, CandidateUserID, TotalVotes,
+       ROUND(PercentageWon, 1) AS RoundedPercentage, MarginOfVictory
+FROM Results;
+GO
+
+-- round to whole number
+SELECT r.ResultID, u.FullName AS CandidateName, r.TotalVotes,
+       ROUND(r.PercentageWon, 0) AS WholeNumberPercentage
+FROM Results r
+INNER JOIN System_User u ON r.CandidateUserID = u.UserID;
+GO
+
+-- truncate to 1 decimal
+SELECT ResultID, TRUNC(PercentageWon, 1) AS TruncatedPercentage, PercentageWon AS OriginalPercentage
+FROM Results;
+GO
+
+-- truncate to whole number
+SELECT r.ResultID, u.FullName AS CandidateName, TRUNC(r.PercentageWon, 0) AS TruncatedWholeNumber
+FROM Results r
+INNER JOIN System_User u ON r.CandidateUserID = u.UserID;
+GO
+
+-- round up
+SELECT ResultID, PercentageWon, CEIL(PercentageWon) AS CeilingPercentage
+FROM Results;
+GO
+
+-- round down
+SELECT ResultID, PercentageWon, FLOOR(PercentageWon) AS FloorPercentage
+FROM Results;
+GO
+
+-- check if votes are even or odd
+SELECT ResultID, TotalVotes, MOD(TotalVotes, 2) AS Remainder,
+       CASE WHEN MOD(TotalVotes, 2) = 0 THEN 'Even' ELSE 'Odd' END AS VoteParity
+FROM Results;
+GO
+
+-- 7. DATE FUNCTIONS
+
+
+-- current date and time
+SELECT SYSDATE AS CurrentDate, SYSTIMESTAMP AS CurrentTimestamp
+FROM DUAL;
+GO
+
+-- how many months between election start and end
+SELECT ElectionID, ElectionName, StartDateTime, EndDateTime,
+       ROUND(MONTHS_BETWEEN(EndDateTime, StartDateTime), 2) AS DurationInMonths
+FROM Election;
+GO
+
+-- add 6 months to election date
+SELECT ElectionID, ElectionName, StartDateTime, ADD_MONTHS(StartDateTime, 6) AS SixMonthsLater
+FROM Election;
+GO
+
+-- next monday after election starts
+SELECT ElectionID, ElectionName, StartDateTime, NEXT_DAY(StartDateTime, 'MONDAY') AS NextMonday
+FROM Election;
+GO
+
+-- last day of the month
+SELECT ElectionID, ElectionName, StartDateTime, LAST_DAY(StartDateTime) AS LastDayOfMonth
+FROM Election;
+GO
+
+-- get year month day separately
+SELECT ElectionID, ElectionName, StartDateTime,
+       EXTRACT(YEAR FROM StartDateTime) AS ElectionYear,
+       EXTRACT(MONTH FROM StartDateTime) AS ElectionMonth,
+       EXTRACT(DAY FROM StartDateTime) AS ElectionDay
+FROM Election;
+GO
+
+-- truncate to start of month and year
+SELECT ElectionID, ElectionName, StartDateTime,
+       TRUNC(StartDateTime, 'MONTH') AS StartOfMonth,
+       TRUNC(StartDateTime, 'YEAR') AS StartOfYear
+FROM Election;
+GO
+
+-- days until upcoming elections start
+SELECT ElectionID, ElectionName, StartDateTime, EndDateTime, Status,
+       CASE WHEN Status = 'Upcoming' THEN TRUNC(StartDateTime) - TRUNC(SYSDATE) ELSE 0 END AS DaysUntilStart
+FROM Election;
+GO
+
+-- format dates nicely
+SELECT ElectionID, ElectionName,
+       TO_CHAR(StartDateTime, 'DD/MM/YYYY HH24:MI:SS') AS FormattedStartDate,
+       TO_CHAR(EndDateTime, 'DD Month YYYY') AS FormattedEndDate
+FROM Election;
+GO
+
+-- convert string to date
+SELECT TO_DATE('2026-04-10', 'YYYY-MM-DD') AS ParsedDate,
+       TO_DATE('10/04/2026 08:00:00', 'DD/MM/YYYY HH24:MI:SS') AS ParsedDateTime
+FROM DUAL;
+GO
+
+-- 8. AGGREGATE FUNCTIONS
+
+
+-- count users per role
+SELECT Role, COUNT(*) AS TotalUsers
+FROM System_User
+GROUP BY Role
+ORDER BY TotalUsers DESC;
+GO
+
+-- count unique election statuses
+SELECT COUNT(DISTINCT Status) AS UniqueStatuses, COUNT(*) AS TotalElections
+FROM Election;
+GO
+
+-- total votes per election
+SELECT e.ElectionID, e.ElectionName, SUM(r.TotalVotes) AS TotalVotesCast
+FROM Election e
+LEFT JOIN Results r ON e.ElectionID = r.ElectionID
+GROUP BY e.ElectionID, e.ElectionName
+ORDER BY TotalVotesCast DESC;
+GO
+
+-- average votes per candidate
+SELECT e.ElectionID, e.ElectionName, p.PositionName, AVG(r.TotalVotes) AS AverageVotes
+FROM Results r
+INNER JOIN Election e ON r.ElectionID = e.ElectionID
+INNER JOIN BallotItem bi ON r.BallotItemID = bi.BallotItemID
+INNER JOIN Positions p ON bi.PositionID = p.PositionID
+GROUP BY e.ElectionID, e.ElectionName, p.PositionName;
+GO
+
+-- highest and lowest votes per election
+SELECT e.ElectionID, e.ElectionName, MAX(r.TotalVotes) AS HighestVotes, MIN(r.TotalVotes) AS LowestVotes
+FROM Election e
+LEFT JOIN Results r ON e.ElectionID = r.ElectionID
+GROUP BY e.ElectionID, e.ElectionName;
+GO
+
+-- combined stats per election
+SELECT e.ElectionID, e.ElectionName,
+       COUNT(DISTINCT r.CandidateUserID) AS TotalCandidates,
+       SUM(r.TotalVotes) AS TotalVotes,
+       AVG(r.TotalVotes) AS AverageVotes,
+       MAX(r.TotalVotes) AS MaxVotes,
+       MIN(r.TotalVotes) AS MinVotes
+FROM Election e
+LEFT JOIN Results r ON e.ElectionID = r.ElectionID
+GROUP BY e.ElectionID, e.ElectionName;
+GO
+
+-- count votes per ballot item
+SELECT bi.BallotItemID, p.PositionName, COUNT(cv.VoteID) AS VotesCast
+FROM BallotItem bi
+INNER JOIN Positions p ON bi.PositionID = p.PositionID
+LEFT JOIN CastVote cv ON bi.BallotItemID = cv.BallotItemID
+GROUP BY bi.BallotItemID, p.PositionName
+ORDER BY VotesCast DESC;
+GO
+
+-- 9. GROUP BY & HAVING CLAUSES
+
+
+-- group users by role and eligibility
+SELECT Role, Eligibility, COUNT(*) AS UserCount
+FROM System_User
+GROUP BY Role, Eligibility
+ORDER BY Role, Eligibility;
+GO
+
+-- elections with more than 1 candidate
+SELECT e.ElectionID, e.ElectionName, COUNT(cn.NominationID) AS CandidateCount
+FROM Election e
+INNER JOIN CandidateNomination cn ON e.ElectionID = cn.ElectionID
+GROUP BY e.ElectionID, e.ElectionName
+HAVING COUNT(cn.NominationID) > 1;
+GO
+
+-- positions where average votes are above 1
+SELECT p.PositionID, p.PositionName, AVG(r.TotalVotes) AS AverageVotes
+FROM Positions p
+INNER JOIN BallotItem bi ON p.PositionID = bi.PositionID
+INNER JOIN Results r ON bi.BallotItemID = r.BallotItemID
+GROUP BY p.PositionID, p.PositionName
+HAVING AVG(r.TotalVotes) > 1;
+GO
+
+-- nominations grouped by election and status
+SELECT e.ElectionName, cn.ApprovalStatus, COUNT(*) AS NominationCount,
+       MIN(cn.NominationDate) AS FirstNomination, MAX(cn.NominationDate) AS LastNomination
+FROM CandidateNomination cn
+INNER JOIN Election e ON cn.ElectionID = e.ElectionID
+GROUP BY e.ElectionName, cn.ApprovalStatus
+ORDER BY e.ElectionName, cn.ApprovalStatus;
+GO
+
+-- elections with nominations in March 2026
+SELECT e.ElectionID, e.ElectionName, COUNT(cn.NominationID) AS MarchNominations
+FROM Election e
+INNER JOIN CandidateNomination cn ON e.ElectionID = cn.ElectionID
+WHERE cn.NominationDate >= TO_DATE('2026-03-01', 'YYYY-MM-DD')
+  AND cn.NominationDate < TO_DATE('2026-04-01', 'YYYY-MM-DD')
+GROUP BY e.ElectionID, e.ElectionName
+HAVING COUNT(cn.NominationID) > 0;
+GO
+
+-- positions where winner got over 50%
+SELECT p.PositionID, p.PositionName, MAX(r.PercentageWon) AS WinningPercentage, COUNT(r.ResultID) AS CandidateCount
+FROM Positions p
+INNER JOIN BallotItem bi ON p.PositionID = bi.PositionID
+INNER JOIN Results r ON bi.BallotItemID = r.BallotItemID
+GROUP BY p.PositionID, p.PositionName
+HAVING MAX(r.PercentageWon) > 50;
+GO
+
+-- 10. JOINS
+
+
+-- inner join
+SELECT e.ElectionID, e.ElectionName, e.Status, p.PositionID, p.PositionName, p.OrderOnBallot
+FROM Election e
+INNER JOIN Positions p ON e.ElectionID = p.ElectionID
+ORDER BY e.ElectionName, p.OrderOnBallot;
+GO
+
+-- left join
+SELECT e.ElectionID, e.ElectionName, e.Status, r.ResultID, r.TotalVotes, r.IsWinner
+FROM Election e
+LEFT JOIN Results r ON e.ElectionID = r.ElectionID
+ORDER BY e.ElectionID, r.ResultID;
+GO
+
+-- right join
+SELECT e.ElectionID, e.ElectionName, r.ResultID, r.CandidateUserID, r.TotalVotes
+FROM Election e
+RIGHT JOIN Results r ON e.ElectionID = r.ElectionID;
+GO
+
+-- full outer join
+SELECT e.ElectionID, e.ElectionName, r.ResultID, r.TotalVotes
+FROM Election e
+FULL OUTER JOIN Results r ON e.ElectionID = r.ElectionID
+ORDER BY e.ElectionID, r.ResultID;
+GO
+
+-- multiple joins - full ballot structure
+SELECT bs.BallotID, bs.BallotName, bs.IsActive, e.ElectionName,
+       bi.BallotItemID, bi.DisplayOrder, p.PositionName, p.Description
+FROM BallotStructure bs
+INNER JOIN Election e ON bs.ElectionID = e.ElectionID
+INNER JOIN BallotItem bi ON bs.BallotID = bi.BallotID
+INNER JOIN Positions p ON bi.PositionID = p.PositionID
+ORDER BY bs.BallotID, bi.DisplayOrder;
+GO
+
+-- self join - compare candidates for same position
+SELECT cn1.NominationID AS Nomination1, u1.FullName AS Candidate1,
+       cn2.NominationID AS Nomination2, u2.FullName AS Candidate2,
+       cn1.ElectionID, p.PositionName
+FROM CandidateNomination cn1
+INNER JOIN CandidateNomination cn2 ON cn1.ElectionID = cn2.ElectionID
+    AND cn1.PositionID = cn2.PositionID AND cn1.NominationID < cn2.NominationID
+INNER JOIN System_User u1 ON cn1.CandidateUserID = u1.UserID
+INNER JOIN System_User u2 ON cn2.CandidateUserID = u2.UserID
+INNER JOIN Positions p ON cn1.PositionID = p.PositionID;
+GO
+
+-- three table join with where clause
+SELECT e.ElectionName, u.FullName AS CandidateName, p.PositionName, cn.ApprovalStatus
+FROM Election e
+INNER JOIN CandidateNomination cn ON e.ElectionID = cn.ElectionID
+INNER JOIN System_User u ON cn.CandidateUserID = u.UserID
+INNER JOIN Positions p ON cn.PositionID = p.PositionID
+WHERE e.Status = 'Active' AND cn.ApprovalStatus = 'Approved';
+GO
+
+-- cross join - all voters with all elections
+SELECT u.UserID, u.FullName, e.ElectionID, e.ElectionName
+FROM System_User u
+CROSS JOIN Election e
+WHERE u.Role = 'Voter'
+ORDER BY u.UserID, e.ElectionID;
+GO
+
+-- 11. SUB-QUERIES
+
+
+-- single row subquery - election with most votes
+SELECT ElectionID, ElectionName, Status
+FROM Election
+WHERE ElectionID = (
+    SELECT ElectionID FROM Results
+    GROUP BY ElectionID
+    ORDER BY SUM(TotalVotes) DESC
+    FETCH FIRST 1 ROWS ONLY
+);
+GO
+
+-- multi row subquery with IN
+SELECT UserID, FullName, EmailAddress, Role
+FROM System_User
+WHERE UserID IN (
+    SELECT DISTINCT CandidateUserID FROM CandidateNomination
+);
+GO
+
+-- correlated subquery
+SELECT e.ElectionID, e.ElectionName,
+       (SELECT COUNT(*) FROM CandidateNomination cn WHERE cn.ElectionID = e.ElectionID) AS CandidateCount
+FROM Election e
+WHERE (SELECT COUNT(*) FROM CandidateNomination cn WHERE cn.ElectionID = e.ElectionID) > (
+    SELECT AVG(candidate_count) FROM (
+        SELECT COUNT(*) AS candidate_count FROM CandidateNomination GROUP BY ElectionID
+    )
+);
+GO
+
+-- subquery in FROM clause
+SELECT ElectionID, ElectionName, TotalVotes, CandidateCount,
+       ROUND(TotalVotes / NULLIF(CandidateCount, 0), 2) AS VotesPerCandidate
+FROM (
+    SELECT e.ElectionID, e.ElectionName, NVL(SUM(r.TotalVotes), 0) AS TotalVotes,
+           COUNT(DISTINCT r.CandidateUserID) AS CandidateCount
+    FROM Election e
+    LEFT JOIN Results r ON e.ElectionID = r.ElectionID
+    GROUP BY e.ElectionID, e.ElectionName
+) vote_stats;
+GO
+
+-- EXISTS subquery
+SELECT e.ElectionID, e.ElectionName, e.Status
+FROM Election e
+WHERE EXISTS (SELECT 1 FROM CandidateNomination cn WHERE cn.ElectionID = e.ElectionID);
+GO
+
+-- NOT EXISTS subquery
+SELECT p.PositionID, p.PositionName, e.ElectionName
+FROM Positions p
+INNER JOIN Election e ON p.ElectionID = e.ElectionID
+WHERE NOT EXISTS (SELECT 1 FROM CandidateNomination cn WHERE cn.PositionID = p.PositionID);
+GO
+
+-- scalar subquery in SELECT
+SELECT r.ResultID, u.FullName AS CandidateName, r.TotalVotes,
+       (SELECT SUM(TotalVotes) FROM Results r2 WHERE r2.ElectionID = r.ElectionID) AS ElectionTotalVotes,
+       ROUND(r.TotalVotes * 100.0 / NULLIF((SELECT SUM(TotalVotes) FROM Results r2 WHERE r2.ElectionID = r.ElectionID), 0), 2) AS CalculatedPercentage
+FROM Results r
+INNER JOIN System_User u ON r.CandidateUserID = u.UserID;
+GO
+
+-- ALL operator subquery
+SELECT u.FullName AS CandidateName, e.ElectionName, r.TotalVotes
+FROM Results r
+INNER JOIN System_User u ON r.CandidateUserID = u.UserID
+INNER JOIN Election e ON r.ElectionID = e.ElectionID
+WHERE r.TotalVotes > ALL (
+    SELECT AVG(TotalVotes) FROM Results GROUP BY ElectionID
+);
+GO
+
+-- Done by: [Nabo Nhonho]
