@@ -406,3 +406,153 @@ FROM SystemAuditLog AS sal
 INNER JOIN System_User AS u
     ON sal.UserID = u.UserID;
 GO
+
+-- ============================================================
+-- Sample Data      
+-- ============================================================
+
+-- System_User 
+INSERT INTO System_User
+    (UserID, FullName, HashedPassword, EmailAddress, Role,
+     Eligibility, VotedFlag, ProfileInfo, CreatedDate)
+VALUES
+(1, 'Lebo Maseko',      'Admin@128Pass',     'admin.smith@gmail.com',      'Administrator',     'Approved',  'N',  'System administrator',           '2026-03-01'),
+(2, 'Karabo Nkosi',     'KaraboN@124Pass',   'karabo.nkosi@gmail.com',     'Voter',             'Approved',  'Y',  'Registered voter - District 4',  '2026-03-05'),
+(3, 'Brian Mkhatshwa',  'BrianM@124Pass',    'brian.mkhatshwa@gmail.com',  'Voter',             'Approved',  'Y',  'Registered voter - District 2',  '2026-03-05'),
+(4, 'Kagiso Sukazi',    'KagisoS@124Pass',   'kagiso.sukazi@gmail.com',    'Voter',             'Approved',  'N',  'Registered voter - District 1',  '2026-03-06'),
+(5, 'Dikeledi Mafifi',  'DikelediM@124Pass', 'dikeledi.mafifi@gmail.com',  'Candidate',         'Approved',  'N',  'Running for Student President',  '2026-03-07'),
+(6, 'Okuhle Mpethu',    'OkuhleM@124Pass',   'okuhle.mpethu@gmail.com',    'Candidate',         'Approved',  'N',  'Running for Student President',  '2026-03-07'),
+(7, 'Kagiso Motsepe',   'KagisoM@124Pass',   'kagiso.motsepe@gmail.com',   'Candidate',         'Approved',  'N',  'Running for Treasurer',          '2026-03-08'),
+(8, 'Zanele Khumalo',   'ZaneleK@124Pass',   'zanele.khumalo@gmail.com',   'ElectionOfficial',  'Approved',  'N',  'Senior election coordinator',    '2026-03-02'),
+(9, 'Bongani Zulu',     'BonganiZ@124Pass',  'bongani.zulu@gmail.com',     'OversightOfficer',  'Approved',  'N',  'Independent oversight member',   '2026-03-03');
+GO
+
+
+-- Election
+INSERT INTO Election
+    (ElectionID, ElectionName, StartDateTime, EndDateTime, Status, Rules)
+VALUES
+(1, 'Student Council Election 2026', '2026-04-10 08:00:00', '2026-04-10 17:00:00', 'Closed',
+ 'One vote per registered student. Results are final after 24 hours.'),
+(2, 'Community Board Election 2026', '2026-05-13 07:00:00', '2026-05-13 20:00:00', 'Active',
+ 'Eligible residents only. Valid photo ID required at time of voting.'),
+(3, 'Staff Representative Election', '2026-07-15 09:00:00', '2026-07-15 16:00:00', 'Upcoming',
+ 'All permanent staff members are eligible. Voting is anonymous.');
+GO
+
+
+-- Positions
+INSERT INTO Positions
+    (PositionID, ElectionID, PositionName, Description, OrderOnBallot)
+VALUES
+(1, 1, 'Student President',    'Leads the student council and represents all students', 1),
+(2, 1, 'Treasurer',            'Manages student council finances and annual budget',     2),
+(3, 2, 'Board Chairperson',    'Chairs all community board meetings and sets agenda',    1),
+(4, 3, 'Staff Representative', 'Represents staff interests in senior management',        1);
+GO
+
+
+-- BallotStructure
+INSERT INTO BallotStructure
+    (BallotID, ElectionID, BallotName, IsActive)
+VALUES
+(1, 1, 'Student Council Ballot 2026', 'N'),
+(2, 2, 'Community Board Ballot 2026', 'Y'),
+(3, 3, 'Staff Rep Ballot 2026',       'N');
+GO
+
+
+-- BallotItem
+INSERT INTO BallotItem
+    (BallotItemID, BallotID, PositionID, DisplayOrder)
+VALUES
+(1, 1, 1, 1),
+(2, 1, 2, 2),
+(3, 2, 3, 1),
+(4, 3, 4, 1);
+GO
+
+
+-- CandidateNomination
+INSERT INTO CandidateNomination
+    (NominationID, ElectionID, CandidateUserID, PositionID,
+     ApprovalStatus, ApprovedBy, NominationDate)
+VALUES
+(1, 1, 5, 1, 'Approved', 'Lebo Maseko', '2026-03-20'),
+(2, 1, 6, 1, 'Approved', 'Lebo Maseko', '2026-03-21'),
+(3, 1, 7, 2, 'Approved', 'Lebo Maseko', '2026-03-22'),
+(4, 2, 5, 3, 'Pending',  NULL,          '2026-04-25'),
+(5, 3, 6, 4, 'Rejected', 'Lebo Maseko', '2026-04-30');
+GO
+
+
+-- CastVote
+INSERT INTO CastVote
+    (VoteID, ElectionID, BallotItemID, CandidateUserID,
+     EncryptedVoteData, TimestampCasted)
+VALUES
+(1, 1, 1, 5, 'ENC_VOTE_DATA_001', '2026-04-10 09:15:00'),
+(2, 1, 1, 6, 'ENC_VOTE_DATA_002', '2026-04-10 10:30:00'),
+(3, 1, 1, 5, 'ENC_VOTE_DATA_003', '2026-04-10 11:00:00'),
+(4, 1, 2, 7, 'ENC_VOTE_DATA_004', '2026-04-10 11:45:00'),
+(5, 1, 2, 7, 'ENC_VOTE_DATA_005', '2026-04-10 13:20:00');
+GO
+
+
+-- Results
+INSERT INTO Results
+    (ResultID, ElectionID, BallotItemID, CandidateUserID,
+     TotalVotes, PercentageWon, MarginOfVictory, IsWinner)
+VALUES
+(1, 1, 1, 5, 2, 66.67, 1, 'Y'),
+(2, 1, 1, 6, 1, 33.33, 1, 'N'),
+(3, 1, 2, 7, 2, 100.00, 2, 'Y');
+GO
+
+
+-- SystemAuditLog
+-- Insert audit records BEFORE OversightReview because OversightReview references AuditIDStart/AuditIDEnd
+INSERT INTO SystemAuditLog
+    (AuditID, UserID, ActionType, TargetEntity, TargetID,
+     [Timestamp], IPAddress, Description)
+VALUES
+(1, 1, 'CREATE',  'Election',            '1', '2026-03-15 10:00:00', '192.168.1.10',
+ 'Created Student Council Election 2026'),
+(2, 1, 'APPROVE', 'CandidateNomination', '1', '2026-03-20 09:00:00', '192.168.1.10',
+ 'Approved nomination for Dikeledi Mafifi'),
+(3, 1, 'APPROVE', 'CandidateNomination', '2', '2026-03-21 09:30:00', '192.168.1.10',
+ 'Approved nomination for Okuhle Mpethu'),
+(4, 8, 'UPDATE',  'Election',            '1', '2026-04-10 07:55:00', '192.168.1.10',
+ 'Updated election status to Active'),
+(5, 8, 'UPDATE',  'Election',            '1', '2026-04-10 17:05:00', '192.168.1.10',
+ 'Updated election status to Closed');
+GO
+
+
+-- OversightReview
+INSERT INTO OversightReview
+    (ReviewID, OfficerUserID, NominationID, ReviewStartTime,
+     ReviewEndTime, AuditIDStart, AuditIDEnd, Findings, CertificationStatus)
+VALUES
+(1, 9, 1, '2026-04-11 08:00:00', '2026-04-11 11:00:00',
+ 1, 5,
+ 'No irregularities found. Election conducted fairly and transparently.',
+ 'Certified'),
+(2, 9, 4, '2026-05-13 08:30:00', NULL,
+ NULL, NULL,
+ 'Active review in progress for Community Board Election.',
+ 'Pending');
+GO
+
+
+-- AccessLog
+INSERT INTO AccessLog
+    (LogID, UserID, LoginTimestamp, IPAddress,
+     SuccessFlag, FailureReason)
+VALUES
+(1, 1, '2026-04-10 07:45:00', '192.168.1.10', 'Y', NULL),
+(2, 2, '2026-04-10 09:05:00', '192.168.1.21', 'Y', NULL),
+(3, 3, '2026-04-10 10:20:00', '192.168.1.33', 'Y', NULL),
+(4, 4, '2026-05-13 07:55:00', '192.168.1.44', 'N', 'Incorrect password'),
+(5, 4, '2026-05-13 07:57:00', '192.168.1.44', 'Y', NULL);
+
