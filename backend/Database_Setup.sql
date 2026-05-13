@@ -263,3 +263,146 @@ CREATE INDEX idx_auditlog__timestamp
 
  CREATE INDEX idx_auditlog__Target
  ON SystemAuditLog(TargetEntity, TargetID);
+
+-- ============================================================
+-- Views
+-- ============================================================ 
+
+-- 1. Active elections currently running
+CREATE VIEW vw_ActiveElections AS
+SELECT
+    ElectionID,
+    ElectionName,
+    StartDateTime,
+    EndDateTime,
+    Status,
+    Rules
+FROM Election
+WHERE Status = 'Active';
+GO
+
+-- 2. All approved candidates with their position and election
+CREATE VIEW vw_ApprovedCandidates AS
+SELECT
+    cn.NominationID,
+    cn.ElectionID,
+    e.ElectionName,
+    u.UserID AS CandidateUserID,
+    u.FullName AS CandidateName,
+    u.EmailAddress,
+    p.PositionName,
+    cn.NominationDate,
+    cn.ApprovedBy
+FROM CandidateNomination AS cn
+INNER JOIN System_User AS u
+    ON cn.CandidateUserID = u.UserID
+INNER JOIN Election AS e
+    ON cn.ElectionID = e.ElectionID
+INNER JOIN Positions AS p
+    ON cn.PositionID = p.PositionID
+WHERE cn.ApprovalStatus = 'Approved';
+GO
+
+-- 3. Election results with winner flag and candidate details
+CREATE VIEW vw_ElectionResults AS
+SELECT
+    r.ResultID,
+    e.ElectionName,
+    u.FullName AS CandidateName,
+    p.PositionName,
+    r.TotalVotes,
+    r.PercentageWon,
+    r.MarginOfVictory,
+    r.IsWinner
+FROM Results AS r
+INNER JOIN System_User AS u
+    ON r.CandidateUserID = u.UserID
+INNER JOIN BallotItem AS bi
+    ON r.BallotItemID = bi.BallotItemID
+INNER JOIN Election AS e
+    ON bi.ElectionID = e.ElectionID
+INNER JOIN Positions AS p
+    ON bi.PositionID = p.PositionID;
+GO
+
+-- 4. Voter turnout per election
+CREATE VIEW vw_VoterTurnout AS
+SELECT
+    e.ElectionID,
+    e.ElectionName,
+    e.Status,
+    COUNT(DISTINCT cv.VoteID)                            AS TotalVotesCast,
+    (SELECT COUNT(*) FROM System_User
+     WHERE Eligibility = 'Approved' AND Role = 'Voter') AS TotalEligibleVoters
+FROM Election AS e
+LEFT JOIN CastVote AS cv ON e.ElectionID = cv.ElectionID
+GROUP BY e.ElectionID, e.ElectionName, e.Status;
+GO
+
+-- 5. Recent login activity with user details
+CREATE VIEW vw_RecentLoginActivity AS
+SELECT
+    al.LogID,
+    u.FullName,
+    u.Role,
+    al.LoginTimestamp,
+    al.IPAddress,
+    al.SuccessFlag,
+    al.FailureReason
+FROM AccessLog AS al
+INNER JOIN System_User AS u
+    ON al.UserID = u.UserID;
+GO
+
+-- 6. Pending nominations waiting for approval
+CREATE VIEW vw_PendingNominations AS
+SELECT
+    cn.NominationID,
+    u.FullName AS CandidateName,
+    u.EmailAddress,
+    e.ElectionName,
+    p.PositionName,
+    cn.NominationDate
+FROM CandidateNomination AS cn
+INNER JOIN System_User AS u
+    ON cn.CandidateUserID = u.UserID
+INNER JOIN Election AS e
+    ON cn.ElectionID = e.ElectionID
+INNER JOIN Positions AS p
+    ON cn.PositionID = p.PositionID
+WHERE cn.ApprovalStatus = 'Pending';
+GO
+
+-- 7. Oversight reviews with officer name and certification status
+CREATE VIEW vw_OversightReviews AS
+SELECT
+    orv.ReviewID,
+    u.FullName AS OfficerName,
+    orv.ReviewStartTime,
+    orv.ReviewEndTime,
+    orv.Findings,
+    orv.CertificationStatus,
+    cn.NominationID
+FROM OversightReview AS orv
+INNER JOIN System_User AS u
+    ON orv.OfficerUserID = u.UserID
+LEFT JOIN CandidateNomination AS cn
+    ON orv.NominationID = cn.NominationID;
+GO
+
+-- 8. Full audit trail with user details
+CREATE VIEW vw_AuditTrail AS
+SELECT
+    sal.AuditID,
+    u.FullName AS ActionBy,
+    u.Role,
+    sal.ActionType,
+    sal.TargetEntity,
+    sal.TargetID,
+    sal.Timestamp,
+    sal.IPAddress,
+    sal.Description
+FROM SystemAuditLog AS sal
+INNER JOIN System_User AS u
+    ON sal.UserID = u.UserID;
+GO
