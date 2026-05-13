@@ -135,3 +135,131 @@ CREATE TABLE SystemAuditLog (
     Description     VARCHAR2(500),
     CONSTRAINT fk_audit_user FOREIGN KEY (UserID) REFERENCES System_User(UserID)
 );
+
+-- ============================================================
+-- INDEXES
+-- ============================================================
+
+-- System_User indexes
+CREATE INDEX idx_user__role
+ ON System_User(Role);
+
+ CREATE INDEX idx_user__eligibility
+ ON System_User(Eligibility);
+
+ CREATE INDEX idx_user__votedflag
+ ON System_User(VotedFlag);
+
+-- Election indexes
+ CREATE INDEX idx_election__status
+ ON Election(Status);
+
+ CREATE INDEX idx_election_dates
+ ON Election(StartDateTime, EndDateTime);
+
+ -- Positions indexes
+CREATE INDEX idx_positions__election
+ ON Positions(ElectionID);
+
+CREATE INDEX idx_positions__order
+ ON Positions(OrderOnBallot);
+
+-- BallotStructure indexes
+CREATE INDEX idx_ballotstructure__election
+ ON BallotStructure(ElectionID);
+
+CREATE INDEX idx_ballotstructure__ballotitem
+ ON BallotStructure(BallotItemID);
+
+ CREATE INDEX idx_ballotstructure__active
+ ON BallotStructure(IsActive);
+
+ CREATE INDEX idx_ballotitem__ballot
+ ON BallotItem(BallotID);
+
+CREATE INDEX idx_ballotitem__position
+ ON BallotItem(PositionID);
+
+-- CandidateNomination indexes
+CREATE INDEX idx_nomination__election      
+ ON CandidateNomination(ElectionID);
+
+CREATE INDEX idx_nomination__candidate
+ ON CandidateNomination(CandidateUserID);
+
+CREATE INDEX idx_nomination__position
+ ON CandidateNomination(PositionID);        
+
+CREATE INDEX idx_nomination__status
+ ON CandidateNomination(ApprovalStatus);        
+
+ CREATE INDEX idx_nomination__approval
+ ON CandidateNomination(ApprovalStatus);        
+
+ CREATE INDEX idx_nomination_date
+ ON CandidateNomination(NominationDate);
+
+-- CastVote indexes
+CREATE INDEX idx_castvote__election
+ ON CastVote(ElectionID);
+
+CREATE INDEX idx_castvote__ballotitem
+ ON CastVote(BallotItemID);
+
+ CREATE INDEX idx_castvote__candidate
+ ON CastVote(CandidateUserID);
+
+ CREATE INDEX idx_castvote__timestamp
+ ON CastVote(TimestampCasted);
+
+-- Results indexes
+CREATE INDEX idx_results__election
+ ON Results(ElectionID);
+
+ CREATE INDEX idx_results__candidate
+ ON Results(CandidateUserID);
+
+CREATE INDEX idx_results__winner
+ ON Results(IsWinner);
+
+ CREATE INDEX idx_results_election_winner
+ ON Results(ElectionID, IsWinner);
+
+-- OversightReview indexes
+CREATE INDEX idx_oversitereview__officer
+ ON OversightReview(OfficerUserID);
+
+CREATE INDEX idx_oversitereview__nomination
+ ON OversightReview(NominationID);
+
+CREATE INDEX idx_oversitereview__status
+ ON OversightReview(CertificationStatus);
+
+ CREATE INDEX idx_oversitereview__times
+ ON OversightReview(ReviewStartTime, ReviewEndTime);
+
+-- AccessLog indexes
+CREATE INDEX idx_accesslog__user
+ ON AccessLog(UserID);
+
+CREATE INDEX idx_accesslog__timestamp
+ ON AccessLog(LoginTimestamp);
+
+CREATE INDEX idx_accesslog__success
+ ON AccessLog(SuccessFlag);
+
+ CREATE INDEX idx_accesslog__ip
+ ON AccessLog(IPAddress);
+
+-- SystemAuditLog indexes
+CREATE INDEX idx_auditlog__user
+ ON SystemAuditLog(UserID);
+
+CREATE INDEX idx_auditlog__timestamp
+ ON SystemAuditLog(Timestamp);
+
+ CREATE INDEX idx_auditlog__action
+ ON SystemAuditLog(ActionType);
+
+ CREATE INDEX idx_auditlog__Target
+ ON SystemAuditLog(TargetEntity, TargetID);
