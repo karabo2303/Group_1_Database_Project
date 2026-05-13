@@ -1158,3 +1158,260 @@ WHERE r.TotalVotes > ALL (
 GO
 
 -- Done by: [Nabo Nhonho]
+
+-- FUNCTIONS
+-- 1. DATE FUNCTIONS
+
+DELIMITER //
+
+-- Check election status
+CREATE FUNCTION fn_IsElectionActive(
+    p_start DATETIME,
+    p_end DATETIME
+)
+RETURNS VARCHAR(20)
+DETERMINISTIC
+BEGIN
+    DECLARE v_status VARCHAR(20);
+
+    IF NOW() BETWEEN p_start AND p_end THEN
+        SET v_status = 'Active';
+    ELSEIF NOW() < p_start THEN
+        SET v_status = 'Upcoming';
+    ELSE
+        SET v_status = 'Closed';
+    END IF;
+
+    RETURN v_status;
+END //
+
+-- Days until election starts
+CREATE FUNCTION fn_DaysUntilElection(
+    p_start DATETIME
+)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    RETURN DATEDIFF(p_start, NOW());
+END //
+
+-- Format election date
+CREATE FUNCTION fn_FormatElectionDate(
+    p_date DATETIME
+)
+RETURNS VARCHAR(50)
+DETERMINISTIC
+BEGIN
+    RETURN DATE_FORMAT(p_date, '%d %M %Y %H:%i');
+END //
+
+-- 2. ROUNDING FUNCTIONS
+
+-- Round percentage
+CREATE FUNCTION fn_RoundPercentage(
+    p_value DECIMAL(10,4)
+)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    RETURN ROUND(p_value, 2);
+END //
+
+-- Calculate vote percentage
+CREATE FUNCTION fn_CalculateVotePercentage(
+    p_votes INT,
+    p_totalVotes INT
+)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE v_percentage DECIMAL(10,2);
+
+    IF p_totalVotes = 0 THEN
+        SET v_percentage = 0;
+    ELSE
+        SET v_percentage = (p_votes * 100.0) / p_totalVotes;
+    END IF;
+
+    RETURN ROUND(v_percentage, 2);
+END //
+
+-- Check if vote count is even or odd
+CREATE FUNCTION fn_VoteParity(
+    p_votes INT
+)
+RETURNS VARCHAR(10)
+DETERMINISTIC
+BEGIN
+    IF MOD(p_votes, 2) = 0 THEN
+        RETURN 'Even';
+    ELSE
+        RETURN 'Odd';
+    END IF;
+END //
+
+-- 3. CHARACTER FUNCTIONS
+
+-- Convert name to uppercase
+CREATE FUNCTION fn_UpperCaseName(
+    p_name VARCHAR(100)
+)
+RETURNS VARCHAR(100)
+DETERMINISTIC
+BEGIN
+    RETURN UPPER(p_name);
+END //
+
+-- Convert email to lowercase
+CREATE FUNCTION fn_LowerCaseEmail(
+    p_email VARCHAR(100)
+)
+RETURNS VARCHAR(100)
+DETERMINISTIC
+BEGIN
+    RETURN LOWER(p_email);
+END //
+
+-- Mask password
+CREATE FUNCTION fn_MaskPassword(
+    p_password VARCHAR(255)
+)
+RETURNS VARCHAR(255)
+DETERMINISTIC
+BEGIN
+    RETURN CONCAT('****', RIGHT(p_password, 4));
+END //
+
+-- Extract email domain
+CREATE FUNCTION fn_GetEmailDomain(
+    p_email VARCHAR(100)
+)
+RETURNS VARCHAR(100)
+DETERMINISTIC
+BEGIN
+    RETURN SUBSTRING_INDEX(p_email, '@', -1);
+END //
+
+DELIMITER ;
+
+-- 4. BUSINESS RULE TRIGGERS
+
+DELIMITER //
+
+-- Prevent duplicate voting
+CREATE TRIGGER trg_PreventDuplicateVote
+BEFORE INSERT ON CastVote
+FOR EACH ROW
+BEGIN
+    DECLARE v_count INT;
+
+    SELECT COUNT(*)
+    INTO v_count
+    FROM CastVote
+    WHERE VoterUserID = NEW.VoterUserID
+      AND ElectionID = NEW.ElectionID;
+
+    IF v_count > 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Voter has already voted in this election';
+    END IF;
+END //
+
+-- Prevent voting outside election period
+CREATE TRIGGER trg_CheckElectionPeriod
+BEFORE INSERT ON CastVote
+FOR EACH ROW
+BEGIN
+    DECLARE v_start DATETIME;
+    DECLARE v_end DATETIME;
+
+    SELECT StartDateTime, EndDateTime
+    INTO v_start, v_end
+    FROM Election
+    WHERE ElectionID = NEW.ElectionID;
+
+    IF NOW() NOT BETWEEN v_start AND v_end THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Voting is not allowed outside election period';
+    END IF;
+END //
+
+-- Prevent deleting votes
+CREATE TRIGGER trg_PreventVoteDeletion
+BEFORE DELETE ON CastVote
+FOR EACH ROW
+BEGIN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Votes cannot be deleted';
+END //
+
+-- Prevent updating votes
+CREATE TRIGGER trg_PreventVoteUpdate
+BEFORE UPDATE ON CastVote
+FOR EACH ROW
+BEGIN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'Votes cannot be modified';
+END //
+
+-- Ensure only administrators create elections
+CREATE TRIGGER trg_AdminCreateElection
+BEFORE INSERT ON Election
+FOR EACH ROW
+BEGIN
+    IF NEW.CreatedByRole <> 'Administrator' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Only administrators can create elections';
+    END IF;
+END //
+
+DELIMITER ;
+
+-- 5. CONSTRAINTS
+
+-- Unique email addresses
+ALTER TABLE System_User
+ADD CONSTRAINT uq_email UNIQUE (EmailAddress);
+
+-- Valid user roles
+ALTER TABLE System_User
+ADD CONSTRAINT chk_role
+CHECK (
+    Role IN (
+        'Voter',
+        'Candidate',
+        'Administrator',
+        'ElectionOfficial',
+        'OversightOfficer'
+    )
+);
+
+-- Valid percentages
+ALTER TABLE Results
+ADD CONSTRAINT chk_percentage
+CHECK (
+    PercentageWon BETWEEN 0 AND 100
+);
+
+-- 6. SAMPLE QUERY USING FUNCTIONS
+
+SELECT
+    u.UserID,
+    u.FullName,
+    fn_UpperCaseName(u.FullName) AS UpperName,
+    fn_LowerCaseEmail(u.EmailAddress) AS LowerEmail,
+    fn_GetEmailDomain(u.EmailAddress) AS EmailDomain,
+    fn_MaskPassword(u.HashedPassword) AS HiddenPassword,
+    r.TotalVotes,
+    fn_RoundPercentage(r.PercentageWon) AS RoundedPercentage,
+    fn_VoteParity(r.TotalVotes) AS VoteType,
+    fn_FormatElectionDate(e.StartDateTime) AS ElectionStart,
+    fn_IsElectionActive(e.StartDateTime, e.EndDateTime) AS ElectionStatus,
+    fn_DaysUntilElection(e.StartDateTime) AS DaysRemaining
+FROM Results r
+INNER JOIN System_User u
+    ON r.CandidateUserID = u.UserID
+INNER JOIN Election e
+    ON r.ElectionID = e.ElectionID;
+
+-- Done by: Karabo Kwakwa
