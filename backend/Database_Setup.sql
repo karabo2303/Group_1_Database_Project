@@ -168,9 +168,6 @@ CREATE INDEX idx_positions__order
 CREATE INDEX idx_ballotstructure__election
  ON BallotStructure(ElectionID);
 
-CREATE INDEX idx_ballotstructure__ballotitem
- ON BallotStructure(BallotItemID);
-
  CREATE INDEX idx_ballotstructure__active
  ON BallotStructure(IsActive);
 
@@ -192,10 +189,7 @@ CREATE INDEX idx_nomination__position
 
 CREATE INDEX idx_nomination__status
  ON CandidateNomination(ApprovalStatus);        
-
- CREATE INDEX idx_nomination__approval
- ON CandidateNomination(ApprovalStatus);        
-
+        
  CREATE INDEX idx_nomination_date
  ON CandidateNomination(NominationDate);
 
@@ -320,7 +314,7 @@ INNER JOIN System_User AS u
 INNER JOIN BallotItem AS bi
     ON r.BallotItemID = bi.BallotItemID
 INNER JOIN Election AS e
-    ON bi.ElectionID = e.ElectionID
+    ON r.ElectionID = e.ElectionID
 INNER JOIN Positions AS p
     ON bi.PositionID = p.PositionID;
 GO
@@ -414,17 +408,17 @@ GO
 -- System_User 
 INSERT INTO System_User
     (UserID, FullName, HashedPassword, EmailAddress, Role,
-     Eligibility, VotedFlag, ProfileInfo, CreatedDate)
+     Eligibility, ProfileInfo, CreatedDate)
 VALUES
-(1, 'Lebo Maseko',      'Admin@128Pass',     'admin.smith@gmail.com',      'Administrator',     'Approved',  'N',  'System administrator',           '2026-03-01'),
-(2, 'Karabo Nkosi',     'KaraboN@124Pass',   'karabo.nkosi@gmail.com',     'Voter',             'Approved',  'Y',  'Registered voter - District 4',  '2026-03-05'),
-(3, 'Brian Mkhatshwa',  'BrianM@124Pass',    'brian.mkhatshwa@gmail.com',  'Voter',             'Approved',  'Y',  'Registered voter - District 2',  '2026-03-05'),
-(4, 'Kagiso Sukazi',    'KagisoS@124Pass',   'kagiso.sukazi@gmail.com',    'Voter',             'Approved',  'N',  'Registered voter - District 1',  '2026-03-06'),
-(5, 'Dikeledi Mafifi',  'DikelediM@124Pass', 'dikeledi.mafifi@gmail.com',  'Candidate',         'Approved',  'N',  'Running for Student President',  '2026-03-07'),
-(6, 'Okuhle Mpethu',    'OkuhleM@124Pass',   'okuhle.mpethu@gmail.com',    'Candidate',         'Approved',  'N',  'Running for Student President',  '2026-03-07'),
-(7, 'Kagiso Motsepe',   'KagisoM@124Pass',   'kagiso.motsepe@gmail.com',   'Candidate',         'Approved',  'N',  'Running for Treasurer',          '2026-03-08'),
-(8, 'Zanele Khumalo',   'ZaneleK@124Pass',   'zanele.khumalo@gmail.com',   'ElectionOfficial',  'Approved',  'N',  'Senior election coordinator',    '2026-03-02'),
-(9, 'Bongani Zulu',     'BonganiZ@124Pass',  'bongani.zulu@gmail.com',     'OversightOfficer',  'Approved',  'N',  'Independent oversight member',   '2026-03-03');
+(1, 'Lebo Maseko',      'Admin@128Pass',     'admin.smith@gmail.com',      'Administrator',     'Approved',  'System administrator',           '2026-03-01'),
+(2, 'Karabo Nkosi',     'KaraboN@124Pass',   'karabo.nkosi@gmail.com',     'Voter',             'Approved',  'Registered voter - District 4',  '2026-03-05'),
+(3, 'Brian Mkhatshwa',  'BrianM@124Pass',    'brian.mkhatshwa@gmail.com',  'Voter',             'Approved',  'Registered voter - District 2',  '2026-03-05'),
+(4, 'Kagiso Sukazi',    'KagisoS@124Pass',   'kagiso.sukazi@gmail.com',    'Voter',             'Approved',  'Registered voter - District 1',  '2026-03-06'),
+(5, 'Dikeledi Mafifi',  'DikelediM@124Pass', 'dikeledi.mafifi@gmail.com',  'Candidate',         'Approved',  'Running for Student President',  '2026-03-07'),
+(6, 'Okuhle Mpethu',    'OkuhleM@124Pass',   'okuhle.mpethu@gmail.com',    'Candidate',         'Approved',  'Running for Student President',  '2026-03-07'),
+(7, 'Kagiso Motsepe',   'KagisoM@124Pass',   'kagiso.motsepe@gmail.com',   'Candidate',         'Approved',  'Running for Treasurer',          '2026-03-08'),
+(8, 'Zanele Khumalo',   'ZaneleK@124Pass',   'zanele.khumalo@gmail.com',   'ElectionOfficial',  'Approved',  'Senior election coordinator',    '2026-03-02'),
+(9, 'Bongani Zulu',     'BonganiZ@124Pass',  'bongani.zulu@gmail.com',     'OversightOfficer',  'Approved',  'Independent oversight member',   '2026-03-03');
 GO
 
 
