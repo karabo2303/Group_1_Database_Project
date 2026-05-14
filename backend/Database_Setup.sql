@@ -1409,3 +1409,175 @@ INNER JOIN Election e
     ON r.ElectionID = e.ElectionID;
 
 -- Done by: Karabo Kwakwa
+
+-- 1. TIE-BREAKING 
+-- Business Rule: If two candidates receive equal votes,
+-- extend voting period for that position only.
+
+-- Insert a new election with a tied result
+INSERT INTO Election (ElectionID, ElectionName, StartDateTime, EndDateTime, Status, Rules)
+VALUES (10, 'Tie-Breaker Test Election', 
+        '2026-05-01 08:00:00', 
+        '2026-05-01 17:00:00', 
+        'Closed',
+        'Tie-breaking: Extended voting period for tied positions');
+
+-- Add a position for this election
+INSERT INTO Positions (PositionID, ElectionID, PositionName, Description, OrderOnBallot)
+VALUES (10, 10, 'Class Representative', 'Representative for first-year class', 1);
+
+-- Add Ballot Structure
+INSERT INTO BallotStructure (BallotID, ElectionID, BallotName, IsActive)
+VALUES (10, 10, 'Tie-Breaker Test Ballot', 'N');
+
+-- Add Ballot Item
+INSERT INTO BallotItem (BallotItemID, BallotID, PositionID, DisplayOrder)
+VALUES (10, 10, 10, 1);
+
+-- Create two candidates
+INSERT INTO System_User (UserID, FullName, HashedPassword, EmailAddress, Role, Eligibility, ProfileInfo)
+VALUES (50, 'Alice Candidate', 'hash_alice', 'alice@test.com', 'Candidate', 'Approved', 'Running for Class Rep');
+
+INSERT INTO System_User (UserID, FullName, HashedPassword, EmailAddress, Role, Eligibility, ProfileInfo)
+VALUES (51, 'Bob Candidate', 'hash_bob', 'bob@test.com', 'Candidate', 'Approved', 'Running for Class Rep');
+
+-- Nominate both candidates
+INSERT INTO CandidateNomination (NominationID, ElectionID, CandidateUserID, PositionID, ApprovalStatus, ApprovedBy, NominationDate)
+VALUES (50, 10, 50, 10, 'Approved', 'Lebo Maseko', '2026-04-25');
+
+INSERT INTO CandidateNomination (NominationID, ElectionID, CandidateUserID, PositionID, ApprovalStatus, ApprovedBy, NominationDate)
+VALUES (51, 10, 51, 10, 'Approved', 'Lebo Maseko', '2026-04-25');
+
+-- Simulate votes that create a TIE (2 votes each)
+-- Alice gets 2 votes
+INSERT INTO CastVote (VoteID, ElectionID, BallotItemID, CandidateUserID, EncryptedVoteData, TimestampCasted)
+VALUES (100, 10, 10, 50, 'ENC_VOTE_ALICE_1', '2026-05-01 09:00:00');
+
+INSERT INTO CastVote (VoteID, ElectionID, BallotItemID, CandidateUserID, EncryptedVoteData, TimestampCasted)
+VALUES (101, 10, 10, 50, 'ENC_VOTE_ALICE_2', '2026-05-01 10:00:00');
+
+-- Bob gets 2 votes
+INSERT INTO CastVote (VoteID, ElectionID, BallotItemID, CandidateUserID, EncryptedVoteData, TimestampCasted)
+VALUES (102, 10, 10, 51, 'ENC_VOTE_BOB_1', '2026-05-01 11:00:00');
+
+INSERT INTO CastVote (VoteID, ElectionID, BallotItemID, CandidateUserID, EncryptedVoteData, TimestampCasted)
+VALUES (103, 10, 10, 51, 'ENC_VOTE_BOB_2', '2026-05-01 14:00:00');
+
+-- Calculate initial results (TIE)
+INSERT INTO Results (ResultID, ElectionID, BallotItemID, CandidateUserID, TotalVotes, PercentageWon, MarginOfVictory, IsWinner)
+VALUES (50, 10, 10, 50, 2, 50.00, 0, 'N');
+
+INSERT INTO Results (ResultID, ElectionID, BallotItemID, CandidateUserID, TotalVotes, PercentageWon, MarginOfVictory, IsWinner)
+VALUES (51, 10, 10, 51, 2, 50.00, 0, 'N');
+
+-- Query to detect ties (shows Election 10 has a tie)
+SELECT 
+    e.ElectionID,
+    e.ElectionName,
+    p.PositionName,
+    r.CandidateUserID,
+    u.FullName AS CandidateName,
+    r.TotalVotes,
+    COUNT(*) OVER (PARTITION BY r.ElectionID, r.BallotItemID) AS CandidateCount,
+    COUNT(CASE WHEN r.TotalVotes = max_votes.max_votes THEN 1 END) OVER (PARTITION BY r.ElectionID, r.BallotItemID) AS NumAtMaxVotes
+FROM Results r
+INNER JOIN System_User u ON r.CandidateUserID = u.UserID
+INNER JOIN Election e ON r.ElectionID = e.ElectionID
+INNER JOIN BallotItem bi ON r.BallotItemID = bi.BallotItemID
+INNER JOIN Positions p ON bi.PositionID = p.PositionID
+INNER JOIN (
+    SELECT ElectionID, BallotItemID, MAX(TotalVotes) AS max_votes
+    FROM Results
+    GROUP BY ElectionID, BallotItemID
+) max_votes ON r.ElectionID = max_votes.ElectionID AND r.BallotItemID = max_votes.BallotItemID
+WHERE r.TotalVotes = max_votes.max_votes
+ORDER BY e.ElectionID, p.PositionName;
+
+-- Create a special tie-breaking ballot for the tied position
+INSERT INTO BallotStructure (BallotID, ElectionID, BallotName, IsActive)
+VALUES (11, 10, 'Tie-Breaker Ballot - Class Representative', 'Y');
+
+-- Only the tied position appears on this ballot
+INSERT INTO BallotItem (BallotItemID, BallotID, PositionID, DisplayOrder)
+VALUES (11, 11, 10, 1);
+
+-- Extend the election period for tie-breaking
+UPDATE Election 
+SET 
+    EndDateTime = TIMESTAMP '2026-05-08 20:00:00',
+    Status = 'Active',
+    Rules = 'Extended voting period due to tie. Only voting for Class Representative position.'
+WHERE ElectionID = 10;
+
+-- Alice gets 2 more votes during extended period
+INSERT INTO CastVote (VoteID, ElectionID, BallotItemID, CandidateUserID, EncryptedVoteData, TimestampCasted)
+VALUES (104, 10, 11, 50, 'ENC_VOTE_ALICE_3', '2026-05-02 09:00:00');
+
+INSERT INTO CastVote (VoteID, ElectionID, BallotItemID, CandidateUserID, EncryptedVoteData, TimestampCasted)
+VALUES (105, 10, 11, 50, 'ENC_VOTE_ALICE_4', '2026-05-02 14:00:00');
+
+-- Bob gets 1 more vote during extended period
+INSERT INTO CastVote (VoteID, ElectionID, BallotItemID, CandidateUserID, EncryptedVoteData, TimestampCasted)
+VALUES (106, 10, 11, 51, 'ENC_VOTE_BOB_3', '2026-05-02 11:00:00');
+
+-- Update Alice's results
+UPDATE Results 
+SET TotalVotes = 4,
+    PercentageWon = ROUND(4 / 7 * 100, 2),
+    IsWinner = 'Y'
+WHERE ElectionID = 10 AND BallotItemID = 10 AND CandidateUserID = 50;
+
+-- Update Bob's results
+UPDATE Results 
+SET TotalVotes = 3,
+    PercentageWon = ROUND(3 / 7 * 100, 2),
+    IsWinner = 'N'
+WHERE ElectionID = 10 AND BallotItemID = 10 AND CandidateUserID = 51;
+
+SELECT 
+    e.ElectionID,
+    e.ElectionName,
+    p.PositionName,
+    u.FullName AS CandidateName,
+    r.TotalVotes,
+    r.PercentageWon,
+    CASE r.IsWinner WHEN 'Y' THEN 'WINNER' ELSE 'Runner-up' END AS Result
+FROM Results r
+INNER JOIN System_User u ON r.CandidateUserID = u.UserID
+INNER JOIN Election e ON r.ElectionID = e.ElectionID
+INNER JOIN BallotItem bi ON r.BallotItemID = bi.BallotItemID
+INNER JOIN Positions p ON bi.PositionID = p.PositionID
+WHERE e.ElectionID = 10
+ORDER BY r.TotalVotes DESC;
+
+-- Show the tie-breaking ballot (only contains the tied position)
+SELECT 
+    bs.BallotID,
+    bs.BallotName,
+    p.PositionName,
+    bi.DisplayOrder
+FROM BallotStructure bs
+INNER JOIN BallotItem bi ON bs.BallotID = bi.BallotID
+INNER JOIN Positions p ON bi.PositionID = p.PositionID
+WHERE bs.ElectionID = 10 AND bs.IsActive = 'Y';
+
+-- Show votes cast during original period vs extended period
+SELECT 
+    CASE 
+        WHEN cv.TimestampCasted <= (SELECT EndDateTime FROM Election WHERE ElectionID = 10 AND Status = 'Closed')
+        THEN 'Original Voting Period'
+        ELSE 'Extended Tie-Break Period'
+    END AS VotingPeriod,
+    COUNT(cv.VoteID) AS VotesCast,
+    COUNT(DISTINCT cv.VoterToken) AS UniqueVoters
+FROM CastVote cv
+WHERE cv.ElectionID = 10
+GROUP BY CASE 
+        WHEN cv.TimestampCasted <= (SELECT EndDateTime FROM Election WHERE ElectionID = 10 AND Status = 'Closed')
+        THEN 'Original Voting Period'
+        ELSE 'Extended Tie-Break Period'
+    END;
+
+COMMIT;
+
+-- Eddited by Bayanda Mzobe
