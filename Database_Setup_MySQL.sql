@@ -1,19 +1,16 @@
--- ============================================================
+
 -- ONLINE VOTING SYSTEM - MYSQL VERSION
 -- Converted from Oracle syntax to MySQL
--- ============================================================
 
--- ============================================================
+
+
 -- CREATE DATABASE
--- ============================================================
 DROP DATABASE IF EXISTS voting_system;
 CREATE DATABASE voting_system;
 USE voting_system;
 
--- ============================================================
--- 1. CREATE TABLES
--- ============================================================
 
+-- 1. CREATE TABLES
 CREATE TABLE System_User (
     UserID          INT PRIMARY KEY,
     FullName        VARCHAR(100) NOT NULL,
@@ -152,10 +149,8 @@ CREATE TABLE SystemAuditLog (
     CONSTRAINT fk_audit_user FOREIGN KEY (UserID) REFERENCES System_User(UserID)
 );
 
--- ============================================================
--- 2. INDEXES
--- ============================================================
 
+-- 2. INDEXES
 CREATE INDEX idx_user_role ON System_User(Role);
 CREATE INDEX idx_user_eligibility ON System_User(Eligibility);
 CREATE INDEX idx_user_votedflag ON System_User(VotedFlag);
@@ -193,10 +188,8 @@ CREATE INDEX idx_auditlog_timestamp ON SystemAuditLog(`Timestamp`);
 CREATE INDEX idx_auditlog_action ON SystemAuditLog(ActionType);
 CREATE INDEX idx_auditlog_target ON SystemAuditLog(TargetEntity, TargetID);
 
--- ============================================================
--- 3. INSERT SAMPLE DATA
--- ============================================================
 
+-- 3. INSERT SAMPLE DATA
 INSERT INTO System_User (UserID, FullName, HashedPassword, EmailAddress, Role, Eligibility, ProfileInfo, CreatedDate)
 VALUES
 (1, 'Lebo Maseko', 'Admin@128Pass', 'admin.smith@gmail.com', 'Administrator', 'Approved', 'System administrator', NOW()),
@@ -278,10 +271,8 @@ VALUES
 (4, 4, '2026-05-13 07:55:00', '192.168.1.44', 'N', 'Incorrect password'),
 (5, 4, '2026-05-13 07:57:00', '192.168.1.44', 'Y', NULL);
 
--- ============================================================
--- 4. VIEWS
--- ============================================================
 
+-- 4. VIEWS
 CREATE VIEW vw_ActiveElections AS
 SELECT ElectionID, ElectionName, StartDateTime, EndDateTime, Status, Rules
 FROM Election
@@ -296,10 +287,8 @@ INNER JOIN Election e ON cn.ElectionID = e.ElectionID
 INNER JOIN Positions p ON cn.PositionID = p.PositionID
 WHERE cn.ApprovalStatus = 'Approved';
 
--- ============================================================
--- 5. TIE-BREAKING DEMONSTRATION
--- ============================================================
 
+-- 5. TIE-BREAKING DEMONSTRATION
 INSERT INTO Election (ElectionID, ElectionName, StartDateTime, EndDateTime, Status, Rules)
 VALUES (10, 'Tie-Breaker Test Election', '2026-05-01 08:00:00', '2026-05-01 17:00:00', 'Closed', 'Tie-breaking: Extended voting period for tied positions');
 
@@ -363,9 +352,8 @@ VALUES (106, 10, 11, 51, 'ENC_VOTE_BOB_3', '2026-05-02 11:00:00');
 UPDATE Results SET TotalVotes = 4, PercentageWon = 57.14, IsWinner = 'Y' WHERE ElectionID = 10 AND BallotItemID = 10 AND CandidateUserID = 50;
 UPDATE Results SET TotalVotes = 3, PercentageWon = 42.86, IsWinner = 'N' WHERE ElectionID = 10 AND BallotItemID = 10 AND CandidateUserID = 51;
 
--- ============================================================
+
 -- VERIFICATION QUERIES
--- ============================================================
 SELECT 'All tables created successfully!' AS Status;
 SELECT COUNT(*) AS UserCount FROM System_User;
 SELECT COUNT(*) AS ElectionCount FROM Election;
