@@ -6,6 +6,8 @@ require('dotenv').config();
 const { pool, testConnection } = require('./config/db');
 
 // Import routes
+const candidateRoutes = require('./routes/candidates');
+const auditLogRoutes = require('./routes/audit-logs');
 const authRoutes = require('./routes/auth');
 const electionRoutes = require('./routes/elections');
 const userRoutes = require('./routes/users');
@@ -34,13 +36,16 @@ app.get('/', (req, res) => {
         message: 'Online Voting System API',
         version: '1.0.0',
         endpoints: {
-            health: '/api/health',
-            auth: '/api/auth',
-            elections: '/api/elections',
-            users: '/api/users',
-            votes: '/api/votes',
-            results: '/api/results',
-            nominations: '/api/nominations'
+    health: '/api/health',
+    auth: '/api/auth',
+    elections: '/api/elections',
+    users: '/api/users',
+    votes: '/api/votes',
+    results: '/api/results',
+    nominations: '/api/nominations',
+    candidates: '/api/candidates',
+    auditLogs: '/api/audit-logs'
+}
         }
     });
 });
@@ -56,12 +61,15 @@ app.get('/api/health', async (req, res) => {
 });
 
 // API Routes
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/elections', electionRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/votes', voteRoutes);
 app.use('/api/results', resultRoutes);
 app.use('/api/nominations', nominationRoutes);
+app.use('/api/candidates', candidateRoutes);
+app.use('/api/audit-logs', auditLogRoutes);
 
 // 404 handler
 app.use((req, res) => {
