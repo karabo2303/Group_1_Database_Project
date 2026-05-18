@@ -6,6 +6,7 @@ require('dotenv').config();
 const { pool, testConnection } = require('./config/db');
 
 // Import routes
+const authRoutes = require('./routes/auth');
 const electionRoutes = require('./routes/elections');
 const userRoutes = require('./routes/users');
 const voteRoutes = require('./routes/votes');
@@ -26,6 +27,24 @@ app.use((req, res, next) => {
     next();
 });
 
+// Root route - API info
+app.get('/', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Online Voting System API',
+        version: '1.0.0',
+        endpoints: {
+            health: '/api/health',
+            auth: '/api/auth',
+            elections: '/api/elections',
+            users: '/api/users',
+            votes: '/api/votes',
+            results: '/api/results',
+            nominations: '/api/nominations'
+        }
+    });
+});
+
 // Health check
 app.get('/api/health', async (req, res) => {
     const dbConnected = await testConnection();
@@ -37,6 +56,7 @@ app.get('/api/health', async (req, res) => {
 });
 
 // API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/elections', electionRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/votes', voteRoutes);
