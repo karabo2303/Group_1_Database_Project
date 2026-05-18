@@ -3,6 +3,7 @@ DELIMITER //
 -- PROCEDURE 1: REGISTER USER
 -- Business Rule: Users must register before accessing system
 
+DROP PROCEDURE IF EXISTS sp_RegisterUser;
 CREATE PROCEDURE sp_RegisterUser(
     IN p_fullname VARCHAR(100),
     IN p_email VARCHAR(100),
@@ -43,6 +44,7 @@ END //
 -- - Account locks after 5 failed attempts
 -- - Only approved users can access
 
+DROP PROCEDURE IF EXISTS sp_Login;
 CREATE PROCEDURE sp_Login(
     IN p_email VARCHAR(100),
     IN p_password VARCHAR(255),
@@ -143,6 +145,7 @@ END //
 -- - Only admins can approve nominations
 -- - Only voters can vote
 
+DROP PROCEDURE IF EXISTS sp_CheckPermission;
 CREATE PROCEDURE sp_CheckPermission(
     IN p_user_id INT,
     IN p_required_role VARCHAR(50),
@@ -212,6 +215,7 @@ END //
 
 -- PROCEDURE 4: CHANGE PASSWORD
 
+DROP PROCEDURE IF EXISTS sp_ChangePassword;
 CREATE PROCEDURE sp_ChangePassword(
     IN p_user_id INT,
     IN p_old_password VARCHAR(255),
@@ -264,6 +268,10 @@ END //
 -- - Vote must reference valid voter (via token)
 -- - Votes remain anonymous (no direct voter ID in CastVote)
 
+DELIMITER //
+
+DROP PROCEDURE IF EXISTS sp_CastVote //
+
 CREATE PROCEDURE sp_CastVote(
     IN p_voter_user_id INT,
     IN p_election_id INT,
@@ -273,7 +281,7 @@ CREATE PROCEDURE sp_CastVote(
     OUT p_success BOOLEAN,
     OUT p_message VARCHAR(255)
 )
-BEGIN
+sp_CastVote: BEGIN
     DECLARE v_token VARCHAR(255);
     DECLARE v_vote_exists INT;
     DECLARE v_election_status VARCHAR(50);
@@ -345,6 +353,6 @@ BEGIN
     
     INSERT INTO SystemAuditLog (UserID, ActionType, TargetEntity, TargetID, Description)
     VALUES (p_voter_user_id, 'CAST_VOTE', 'Election', p_election_id, 'Vote cast successfully');
-END //
+END sp_CastVote //
 
 DELIMITER ;
