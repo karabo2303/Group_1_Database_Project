@@ -36,20 +36,18 @@ app.get('/', (req, res) => {
         message: 'Online Voting System API',
         version: '1.0.0',
         endpoints: {
-    health: '/api/health',
-    auth: '/api/auth',
-    elections: '/api/elections',
-    users: '/api/users',
-    votes: '/api/votes',
-    results: '/api/results',
-    nominations: '/api/nominations',
-    candidates: '/api/candidates',
-    auditLogs: '/api/audit-logs'
-}
+            health: '/api/health',
+            auth: '/api/auth',
+            elections: '/api/elections',
+            users: '/api/users',
+            votes: '/api/votes',
+            results: '/api/results',
+            nominations: '/api/nominations',
+            candidates: '/api/candidates',
+            auditLogs: '/api/audit-logs'
         }
     });
 });
-
 // Health check
 app.get('/api/health', async (req, res) => {
     const dbConnected = await testConnection();
